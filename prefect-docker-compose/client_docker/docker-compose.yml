@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+
+    registry:
+        restart: always
+        image: registry:2.8.1
+        ports:
+            - 5000:5000
+        volumes:
+            - ./registry/auth:/auth
+            - registry_data:/data
+        environment:
+            REGISTRY_AUTH: htpasswd
+            REGISTRY_AUTH_HTPASSWD_REALM: Registry
+            REGISTRY_AUTH_HTPASSWD_PATH: /auth/.htpasswd
+            REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /data
+
+    # The script should have access to Docker in order to register
+    # the Dockerized script (`execution.Dockerfile`) in a 
+    # Docker image later used by the Prefect agent.
+    weather:
+        build: .
+        privileged: true # forced for Docker DinD
+        environment:
+            PREFECT_API_URL: "http://172.17.0.1:4200/api"
+            REGISTRY_ENDPOINT: "172.17.0.1:5000"
+            REGISTRY_SCHEME: "http"
+            REGISTRY_USERNAME: myusername
+            REGISTRY_PASSWORD: test
+        volumes:
+            - ./app:/usr/app:ro
+            - type: bind
+              source: /var/run/docker.sock
+              target: /var/run/docker.sock
+              read_only: true
+        depends_on:
+            - registry
+
+volumes:
+    registry_data:
+    flows_docker:
